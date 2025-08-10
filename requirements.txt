@@ -1,0 +1,7 @@
+flet==0.28.3
+aiohttp
+# for socketio
+python-socketio==5.7.2
+websockets==10.4
+asgiref==3.7.2
+
