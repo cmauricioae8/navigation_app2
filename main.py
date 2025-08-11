@@ -9,17 +9,91 @@
 """
 
 import flet as ft
+import time
+
+def show_waiting_view(app_ws_content, cancel_mode_trans_bt, page):
+    """
+    Function to display the waiting view when transitioning mode.
+    'app_ws_content', 'cancel_mode_trans_bt' and 'page' references are required in order to
+    modify the 'app_ws_content' by adding vertical elements.
+    """
+    ## Remember: app_ws_content.controls is a ft.Column
+    app_ws_content.controls.clear() #clear all content in app_ws
+
+    app_ws_content.controls.append(
+        ft.Text("Please Wait...", size=30, color=ft.Colors.LIGHT_GREEN_ACCENT_700,width=200)
+    )
+    app_ws_content.controls.append(ft.Container(expand=True))
+    app_ws_content.controls.append(
+        ft.ProgressRing(
+            color=ft.Colors.AMBER_500, bgcolor=ft.Colors.BLUE_GREY,
+            width=150, height=150, stroke_width=25)
+    )
+    app_ws_content.controls.append(ft.Container(expand=True))
+
+    app_ws_content.controls.append(cancel_mode_trans_bt)
+    page.update()
 
 
 def main(page: ft.Page):
     page.title = "New Navigation App"
     page.bgcolor = ft.Colors.BLUE_GREY_900
+    
+
+    ## Cancel mode transition. Alert dialog box ---
+    def yes_dlg(e):
+        cancel_confirm_dgl.open = False
+        e.control.page.update()
+        print("Transition mode canceled!")
+    
+    def no_dlg(e):
+        cancel_confirm_dgl.open = False
+        e.control.page.update()
+    
+    cancel_confirm_dgl = ft.AlertDialog(
+        modal=True, title=ft.Text("Please confirm"),
+        content=ft.Text("Do you really want to cancel transition?"),
+        actions=[
+            ft.TextButton("Yes", on_click=yes_dlg),
+            ft.TextButton("No", on_click=no_dlg),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+        # on_dismiss=lambda e: print("Modal dialog dismissed!"),
+    )
+
+    def open_cancel_dlg(e):
+        e.control.page.overlay.append(cancel_confirm_dgl)
+        cancel_confirm_dgl.open = True
+        e.control.page.update()
+    
+    cancel_mode_trans_bt = ft.ElevatedButton(
+        text="Cancel transition", color=ft.Colors.WHITE, bgcolor=ft.Colors.RED_800,
+        width=150, height=50, on_click=open_cancel_dlg,
+    )
+    ## ------
 
 
+    def validate_changing_mode(e):
+        rail.disabled = True
+        status_bar.disabled = True
+        page.update()
+        print("Selected destination:", e.control.selected_index)
+
+        ## TODO: Check new mode (enum??) ----
+        show_waiting_view(app_ws_content, cancel_mode_trans_bt,page)
+        
+        ## TODO: Consume endpoint to change mode
+        time.sleep(5)       # Delay added to simulate server response
+        app_ws_content.controls.clear() #clear all content in app_ws
+        rail.disabled = False
+        status_bar.disabled = False
+        page.update()
+    
+    
     rail = ft.NavigationRail(
         selected_index=0,
         label_type=ft.NavigationRailLabelType.ALL,
-        min_width=100,
+        min_width=100, #scale=1.4,
         bgcolor=ft.Colors.BLUE_200,
         group_alignment=-0.1,
         indicator_color=ft.Colors.RED,
@@ -39,23 +113,27 @@ def main(page: ft.Page):
                 label_content=ft.Text("Mapping"),
             ),
         ],
-        on_change=lambda e: print(f"{e.control.selected_index} index chosen"),        
+        on_change=validate_changing_mode,        
+    )
+
+    app_ws_content = ft.Column(
+        controls=[
+            ft.Text(
+                "None Mode Set!", size=40,
+                color=ft.Colors.LIGHT_GREEN_ACCENT_700
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
     )
 
     app_ws = ft.Row(
         controls=[
             rail,
-            ft.Column(
-                controls=[
-                    ft.Text(
-                        "None Mode Set!", size=40,
-                        color=ft.Colors.LIGHT_GREEN_ACCENT_700
-                    ),
-                ],
-                alignment=ft.MainAxisAlignment.START, expand=True
-            ),
+            ft.Container(expand=True), #To push rail to left
+            app_ws_content,
         ],
         width=700, height=400,
+        alignment=ft.MainAxisAlignment.CENTER,
     )
 
     status_bar = ft.BottomAppBar(
