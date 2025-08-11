@@ -4,7 +4,8 @@
 **Contact email:** cmauricioae8@gmail.com<br>
 
 
-Flet application to manage modes of control for an autonomous mobile robot. Since it is assumed that octy_bridge2 ROS 2 package is running (Server for both HTTP and SocketIO communications methods), ROS 2 is NOT required. 
+Flet application to manage modes of control for an autonomous mobile robot. Since it is assumed that octy_bridge2 ROS 2 package is running (the Server for both HTTP and SocketIO communications protocols), 
+ROS 2 is NOT required. 
 
 
 ## Installation using a virtual environment (recommended)
