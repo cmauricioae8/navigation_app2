@@ -6,20 +6,37 @@
 
 @important: Since it is assumed that octy_bridge2 ROS 2 package is running 
 (the Server for both HTTP and SocketIO communications protocols), ROS 2 is NOT required.
+
+The Socket.IO server MUST BE running in order to test this script. ---------
 """
 
 import flet as ft
 import time
 import requests
 from enum import Enum
+from components.sio_client_lib import SocketIOClient
 
 SERVER_IP="localhost"
 SERVER_PORT="9009"
+SIO_EVENT_TIMEOUT = 10.0
+
+# Global instance of our client
+sio_client = SocketIOClient(server_url=f'http://{SERVER_IP}:{SERVER_PORT}')
 
 # Http method definition using Enum
 class HttpMethod(Enum):
     GET: int = 0
     POST: int = 1
+
+ 
+class Mode(Enum):
+    static: int = 0
+    delivery: int = 1 # Should be teleop -----
+    mapping: int = 2
+
+
+current_mode = Mode.static
+cancel_transition_mode = False
 
 def show_waiting_view(app_ws_content):
     """
@@ -41,6 +58,12 @@ def show_waiting_view(app_ws_content):
     )
     app_ws_content.controls.append(ft.Container(expand=True))
 
+def show_teleop_view(app_ws_content):
+    app_ws_content.controls.clear() #clear all content in app_ws
+    app_ws_content.controls.append(
+        ft.Text("Teleoperation Mode", size=30, color=ft.Colors.LIGHT_GREEN_ACCENT_700,width=200)
+    )
+
 def try_endpoint(method, url, params, payload) -> list:
     status_code = None
     message = None
@@ -54,7 +77,7 @@ def try_endpoint(method, url, params, payload) -> list:
             print(f"Error: {method} NOT supported")
             return False
         
-        response.raise_for_status()
+        # response.raise_for_status()
         status_code = response.status_code
         message = response.text
 
@@ -65,7 +88,6 @@ def try_endpoint(method, url, params, payload) -> list:
 
     return status_code, message
 
-
 def consume_endpoint(method, expected_code, url_suffix, params, payload):
     url_base = f"http://{SERVER_IP}:{SERVER_PORT}/"
     url = url_base + url_suffix
@@ -75,6 +97,7 @@ def consume_endpoint(method, expected_code, url_suffix, params, payload):
 
     print(f"{status_code=}\n{message=}")
     
+    ## TODO: implement handler exceptions for 3xx and 4xx status codes
     if status_code == expected_code:
         return True
     else: return False
@@ -84,12 +107,19 @@ def main(page: ft.Page):
     page.title = "New Navigation App"
     page.bgcolor = ft.Colors.BLUE_GREY_900
     
+    ## SocketIO initialization
+    sio_client.start()
+    time.sleep(0.5)
+
 
     ## Cancel mode transition. Alert dialog box ---
     def yes_dlg(e):
+        global cancel_transition_mode
         cancel_confirm_dgl.open = False
-        e.control.page.update()
+        cancel_transition_mode = True
+        cancel_mode_trans_bt.visible = False
         print("Transition mode canceled!")
+        e.control.page.update()
     
     def no_dlg(e):
         cancel_confirm_dgl.open = False
@@ -119,41 +149,99 @@ def main(page: ft.Page):
 
 
     def validate_changing_mode(e):
+        global current_mode, cancel_transition_mode
+
+        desired_mode = Mode(e.control.selected_index)
+        print("Selected destination:", desired_mode)
+
+        if current_mode == desired_mode:
+            print(f"Already in {current_mode} mode")
+            return
+
         rail.disabled = True
         status_bar.disabled = True
         page.update()
-        print("Selected destination:", e.control.selected_index)
 
-        ## TODO: Check new mode (enum??) ----
         show_waiting_view(app_ws_content)
         
         # Post method to change mode
-        response = consume_endpoint(HttpMethod.POST, 200, "ros/functionality_mode", {}, {"mode":"delivery"})
+        response = consume_endpoint(HttpMethod.POST, 200, "ros/functionality_mode", {}, {"mode": desired_mode.name} )
         
         if response:
             # Due to the http post was success, keep waiting for the SocketIO confirmation
             app_ws_content.controls.append(cancel_mode_trans_bt)
             status_bar_msg.value = "Waiting for robot to be ready ..."
             page.update()
-            print("Waiting the SocketIO confirmation to change mode ...")
 
-            ## TODO: Implement SocketIO handler to confirm mode transition 
-            time.sleep(5)           # Delay added to simulate SocketIO event
+            # Check a change in the function_mode attribute (with timeout to stop waiting)
+            if not sio_client.connected:
+                status_bar_msg.value = "SocketIO Server NOT available"
+                status_bar.bgcolor=ft.Colors.RED_ACCENT_700
+                page.update()
+                return
+
+            t0 = time.time()
+            sio_client.in_waiting = True
+            cancel_transition_mode = False
+            while(time.time() - t0 < SIO_EVENT_TIMEOUT):
+                if sio_client.function_mode == "mau": ## ------------ Modify to test
+                    sio_client.in_waiting = False
+                    break
+                if cancel_transition_mode: # User canceled
+                    break
+                time.sleep(0.5)
+            
+            # Verify breaking reason
+            if sio_client.in_waiting or not cancel_transition_mode:
+                if sio_client.in_waiting:
+                    status_bar_msg.value = "Timeout exceed, please try again"
+                if cancel_transition_mode:
+                    status_bar_msg.value = "Transition mode canceled by the user"
+                    page.update()
+                app_ws_content.controls.clear()
+                ## Endpoint to reset mode (return to static)
+                response = consume_endpoint(HttpMethod.POST, 200, "ros/functionality_mode", {}, {"mode":"static"})
+                time.sleep(3.0) # Wait for applying changes (not socketio event for this case) ------------------
+                response = consume_endpoint(HttpMethod.GET, 200, "ros/functionality_mode", {}, {})
+                if response:
+                    ## Reset mode variables
+                    sio_client.in_waiting = False
+                    cancel_transition_mode = False
+                    cancel_mode_trans_bt.visible = True
+                    print("Reset to static mode success ---------")
+                current_mode = Mode.static
+                rail.disabled = False
+                status_bar.disabled = False
+                rail.selected_index = current_mode.value
+                page.update()
+                return
+            else:
+                # Continue with the new mode view
+                current_mode = desired_mode
+                if current_mode == Mode.static:
+                    app_ws_content.controls.clear()
+                    status_bar_msg.value = "Return to Static Mode"
+                elif current_mode == Mode.delivery:
+                    show_teleop_view(app_ws_content)
+                    status_bar_msg.value = "You can move the robot around"
+                else:
+                    status_bar_msg.value = f"{str(current_mode)} view NOT implemented yet"
+                    app_ws_content.controls.clear() #clear all content in app_ws
+                    rail.selected_index = Mode.static.value
         else:
-            status_bar.bgcolor=ft.Colors.RED_ACCENT_700
+            status_bar.bgcolor = ft.Colors.RED_ACCENT_700
             status_bar_msg.value = "Server NOT available"
             app_ws_content.controls.clear() #clear all content in app_ws
             page.update()
             return
-        
-        app_ws_content.controls.clear() #clear all content in app_ws
+
         rail.disabled = False
         status_bar.disabled = False
-        page.update()
+        page.update()        
     
     
     rail = ft.NavigationRail(
-        selected_index=0,
+        selected_index=current_mode.value,
         label_type=ft.NavigationRailLabelType.ALL,
         min_width=100, #scale=1.4,
         bgcolor=ft.Colors.BLUE_200,
