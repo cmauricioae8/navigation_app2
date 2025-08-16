@@ -21,9 +21,9 @@ class SocketIOClient:
         async def disconnect():
             print('Disconnected from server.')
         
-        @self.sio.on('*')
-        def catch_all(event, data):
-            print(f'Received event "{event}" with data {data}')
+        # @self.sio.on('*')
+        # def catch_all(event, data):
+        #     print(f'Received event "{event}" with data {data}')
         
         # Callback function for the 'on_status_change' event, the change mode event
         @self.sio.on('on_status_change')

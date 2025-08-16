@@ -15,10 +15,11 @@ import time
 import requests
 from enum import Enum
 from components.sio_client_lib import SocketIOClient
+import asyncio
 
 SERVER_IP="localhost"
 SERVER_PORT="9009"
-SIO_EVENT_TIMEOUT = 10.0
+SIO_EVENT_TIMEOUT = 60.0
 
 # Global instance of our client
 sio_client = SocketIOClient(server_url=f'http://{SERVER_IP}:{SERVER_PORT}')
@@ -28,7 +29,6 @@ class HttpMethod(Enum):
     GET: int = 0
     POST: int = 1
 
- 
 class Mode(Enum):
     static: int = 0
     delivery: int = 1 # Should be teleop -----
@@ -63,6 +63,7 @@ def show_teleop_view(app_ws_content):
     app_ws_content.controls.append(
         ft.Text("Teleoperation Mode", size=30, color=ft.Colors.LIGHT_GREEN_ACCENT_700,width=200)
     )
+
 
 def try_endpoint(method, url, params, payload) -> list:
     status_code = None
@@ -151,7 +152,7 @@ def main(page: ft.Page):
     def validate_changing_mode(e):
         global current_mode, cancel_transition_mode
 
-        desired_mode = Mode(e.control.selected_index)
+        desired_mode = Mode(e.control.selected_index).name
         print("Selected destination:", desired_mode)
 
         if current_mode == desired_mode:
@@ -165,11 +166,12 @@ def main(page: ft.Page):
         show_waiting_view(app_ws_content)
         
         # Post method to change mode
-        response = consume_endpoint(HttpMethod.POST, 200, "ros/functionality_mode", {}, {"mode": desired_mode.name} )
+        response = consume_endpoint(HttpMethod.POST, 200, "ros/functionality_mode", {}, {"mode": desired_mode} )
         
         if response:
             # Due to the http post was success, keep waiting for the SocketIO confirmation
-            app_ws_content.controls.append(cancel_mode_trans_bt)
+            if desired_mode != Mode.static.name:
+                app_ws_content.controls.append(cancel_mode_trans_bt)
             status_bar_msg.value = "Waiting for robot to be ready ..."
             page.update()
 
@@ -183,19 +185,22 @@ def main(page: ft.Page):
             t0 = time.time()
             sio_client.in_waiting = True
             cancel_transition_mode = False
+            print(f"Waiting for transition...\n")
+
             while(time.time() - t0 < SIO_EVENT_TIMEOUT):
-                if sio_client.function_mode == "mau": ## ------------ Modify to test
+                if sio_client.function_mode == desired_mode: ## ------------ Modify to test
                     sio_client.in_waiting = False
+                    print(f"New mode: {desired_mode} success")
                     break
                 if cancel_transition_mode: # User canceled
                     break
                 time.sleep(0.5)
             
             # Verify breaking reason
-            if sio_client.in_waiting or not cancel_transition_mode:
+            if sio_client.in_waiting or cancel_transition_mode:
                 if sio_client.in_waiting:
                     status_bar_msg.value = "Timeout exceed, please try again"
-                if cancel_transition_mode:
+                elif cancel_transition_mode:
                     status_bar_msg.value = "Transition mode canceled by the user"
                     page.update()
                 app_ws_content.controls.clear()
@@ -218,12 +223,18 @@ def main(page: ft.Page):
             else:
                 # Continue with the new mode view
                 current_mode = desired_mode
-                if current_mode == Mode.static:
+                if current_mode == Mode.static.name:
                     app_ws_content.controls.clear()
                     status_bar_msg.value = "Return to Static Mode"
-                elif current_mode == Mode.delivery:
+                elif current_mode == Mode.delivery.name:
                     show_teleop_view(app_ws_content)
                     status_bar_msg.value = "You can move the robot around"
+                    
+                    ## Emit socketIo event
+                    asyncio.run_coroutine_threadsafe(
+                        sio_client.send_velocity_command(0.0, 0.0),
+                        sio_client._loop
+                    )
                 else:
                     status_bar_msg.value = f"{str(current_mode)} view NOT implemented yet"
                     app_ws_content.controls.clear() #clear all content in app_ws
@@ -243,7 +254,7 @@ def main(page: ft.Page):
     rail = ft.NavigationRail(
         selected_index=current_mode.value,
         label_type=ft.NavigationRailLabelType.ALL,
-        min_width=100, #scale=1.4,
+        min_width=100, #scale=1.4, # height=400,
         bgcolor=ft.Colors.BLUE_200,
         group_alignment=-0.1,
         indicator_color=ft.Colors.RED,
@@ -296,8 +307,9 @@ def main(page: ft.Page):
                 ft.Container(expand=True),
                 ft.IconButton(icon=ft.Icons.SETTINGS_OUTLINED, 
                               icon_color=ft.Colors.BLACK, scale=1.7),
-            ]
+            ],
         ),
+        height=100,
     )
  
     
