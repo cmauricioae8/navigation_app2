@@ -30,7 +30,7 @@ class HttpMethod(Enum):
     POST: int = 1
 
 class Mode(Enum):
-    static: int = 0
+    static: int = 0 # Mode.value -> int, Mode.name -> str
     delivery: int = 1 # Should be teleop -----
     mapping: int = 2
 
@@ -254,7 +254,8 @@ def main(page: ft.Page):
     rail = ft.NavigationRail(
         selected_index=current_mode.value,
         label_type=ft.NavigationRailLabelType.ALL,
-        min_width=100, #scale=1.4, # height=400,
+        min_width=100, #scale=1.4,
+        height=400,
         bgcolor=ft.Colors.BLUE_200,
         group_alignment=-0.1,
         indicator_color=ft.Colors.RED,
@@ -287,9 +288,42 @@ def main(page: ft.Page):
         alignment=ft.MainAxisAlignment.CENTER,
     )
 
+
+    #Joystick (gesture detector)
+    st_size = 200
+    gd_size = 50
+    neutral_p = (st_size-gd_size)/2
+    gd_content = ft.Container(bgcolor=ft.Colors.BLUE, width=gd_size, height=gd_size, border_radius=25,)
+
+    gd = ft.GestureDetector(
+        mouse_cursor=ft.MouseCursor.MOVE, drag_interval=50,
+        # on_vertical_drag_update=on_pan_update,
+        # on_horizontal_drag_update=on_pan_update,
+        # on_vertical_drag_end=on_pan_end,
+        # on_horizontal_drag_end=on_pan_end,
+        left=neutral_p, top=neutral_p, content=gd_content
+    )
+
+    bg_img = ft.Image( width=st_size, height=st_size, fit=ft.ImageFit.CONTAIN,
+        border_radius=ft.border_radius.all(st_size/2),
+        src="assets/img/joystick_bg.png",
+    )
+    
+    joystick = ft.Row(
+        [
+            ft.Stack([bg_img, gd], width=st_size, height=st_size)
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_EVENLY, #visible=False,
+    )
+
     app_ws = ft.Row(
         controls=[
-            rail,
+            ft.Column(
+                [
+                    rail,
+                    joystick,
+                ], # alignment=ft.MainAxisAlignment.CENTER
+            ),
             ft.Container(expand=True), #To push rail to left
             app_ws_content,
         ],
@@ -309,7 +343,7 @@ def main(page: ft.Page):
                               icon_color=ft.Colors.BLACK, scale=1.7),
             ],
         ),
-        height=100,
+        height=60,
     )
  
     
