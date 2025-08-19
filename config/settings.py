@@ -1,0 +1,4 @@
+
+SERVER_IP = "localhost"
+SERVER_PORT = "9009"
+SIO_EVENT_TIMEOUT = 60.0

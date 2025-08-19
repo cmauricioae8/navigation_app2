@@ -89,7 +89,7 @@ class SocketIOClient:
             'angular_z': angular_z
         }
         await self.sio.emit('cmd_vel', data)
-        print(f"Sent 'cmd_vel': linear_x={linear_x}, angular_z={angular_z}")        
+        # print(f"Sent 'cmd_vel': linear_x={linear_x}, angular_z={angular_z}")        
 
     def disconnect(self):
         """Disconnects the client."""
