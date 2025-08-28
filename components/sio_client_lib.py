@@ -21,11 +21,11 @@ class SocketIOClient:
         async def disconnect():
             print('Disconnected from server.')
         
-        # @self.sio.on('*')
-        # def catch_all(event, data):
-        #     print(f'Received event "{event}" with data {data}')
+        @self.sio.on('*')
+        def catch_all(event, data):
+            print(f'Received event "{event}" with data {data}')
         
-        # Callback function for the 'on_status_change' event, the change mode event
+        ## Callback function for the 'on_status_change' event, the change mode event
         @self.sio.on('on_status_change')
         def handle_status_change(msg):
             # To correctly obtain message information, please refer to SocketIO server documentation
@@ -33,27 +33,19 @@ class SocketIOClient:
                 data_val = msg['data']
                 # print(f"{data_val=}")
                 
-                functionality_mode_val = data_val['functionality_mode']
-                # print(f"{functionality_mode_val=}")
+                operation_mode_val = data_val['operation_mode']
+                mode_val = operation_mode_val['mode']
+                ready_val = operation_mode_val['ready']
 
-                function_val = functionality_mode_val['function']
-                # print(f"{function_val=}")
-                
-                ready_val = functionality_mode_val['ready']
-                print(f"{ready_val=}")
-
-                # print(f"\n{msg['data']['functionality_mode']['function']=}")
-                # print(f"\n{msg['data']['functionality_mode']['ready']=}")
-
-
-                if function_val and ready_val is not None:
+                if mode_val is not None and ready_val is not None:
                     # print(f"Received on_status_change complete")
-                    self.function_mode = function_val
+                    self.function_mode = mode_val
                 else:
                     print("Received 'on_status_change' event, but data is incomplete.")
 
             except Exception as e:
                 print(f"Error processing 'on_status_change' data: {e}")
+
         
 
     async def _run_sio_client(self):

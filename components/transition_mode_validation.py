@@ -57,7 +57,7 @@ def validate_changing_mode(current_mode, cancel_transition_mode, desired_mode, r
     show_waiting_view(app_ws_content)
 
     # Post method to change mode
-    response = consume_endpoint(HttpMethod.POST, 200, "ros/functionality_mode", {}, {"mode": desired_mode} )
+    response = consume_endpoint(HttpMethod.POST, 200, "ros/operation_mode", {}, {"mode": desired_mode} )
         
     if response:
         # Due to the http post was success, keep waiting for the SocketIO confirmation
@@ -95,9 +95,9 @@ def validate_changing_mode(current_mode, cancel_transition_mode, desired_mode, r
                 page.update()
             app_ws_content.controls.clear()
             ## Endpoint to reset mode (return to static)
-            response = consume_endpoint(HttpMethod.POST, 200, "ros/functionality_mode", {}, {"mode":"static"})
+            response = consume_endpoint(HttpMethod.POST, 200, "ros/operation_mode", {}, {"mode":"static"})
             time.sleep(3.0) # Wait for applying changes (not socketio event for this case) ------------------
-            response = consume_endpoint(HttpMethod.GET, 200, "ros/functionality_mode", {}, {})
+            response = consume_endpoint(HttpMethod.GET, 200, "ros/operation_mode", {}, {})
             if response:
                 ## Reset mode variables
                 sio_client.in_waiting = False
@@ -117,7 +117,7 @@ def validate_changing_mode(current_mode, cancel_transition_mode, desired_mode, r
                 app_ws_content.controls.clear()
                 status_bar_msg.value = "Return to Static Mode"
                 joystick.visible = False
-            elif current_mode == Mode.delivery.name:
+            elif current_mode == Mode.teleoperation.name:
                 show_teleop_view(app_ws_content)
                 status_bar_msg.value = "You can move the robot around"
                 joystick.visible = True
