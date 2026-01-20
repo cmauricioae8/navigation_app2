@@ -12,6 +12,8 @@ class SocketIOClient:
         self.function_mode = "static"
         self.in_waiting = False
 
+        self.map_dict = None
+
         # Register event handlers
         @self.sio.event
         async def connect():
@@ -21,9 +23,9 @@ class SocketIOClient:
         async def disconnect():
             print('Disconnected from server.')
         
-        @self.sio.on('*')
-        def catch_all(event, data):
-            print(f'Received event "{event}" with data {data}')
+        # @self.sio.on('*')
+        # def catch_all(event, data):
+        #     print(f'Received event "{event}" with data {data}')
         
         ## Callback function for the 'on_status_change' event, the change mode event
         @self.sio.on('on_status_change')
@@ -45,6 +47,16 @@ class SocketIOClient:
 
             except Exception as e:
                 print(f"Error processing 'on_status_change' data: {e}")
+        
+        ## Callback function for the 'map' event
+        @self.sio.on('map')
+        def handle_status_change(msg):
+            try:
+                map_event = msg['data']
+                if map_event is not None:
+                    self.map_dict = map_event
+            except Exception as e:
+                print(f"Error processing 'map' data: {e}")
 
         
 

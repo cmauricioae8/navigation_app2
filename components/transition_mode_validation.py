@@ -1,7 +1,7 @@
 
 import flet as ft
 import time
-from components.show_views import show_waiting_view, show_teleop_view
+from components.show_views import show_waiting_view, show_teleop_view, show_mapping_view
 from utilities.functions import consume_endpoint, HttpMethod
 from config.settings import SIO_EVENT_TIMEOUT
 from utilities.enums import Mode
@@ -37,7 +37,7 @@ cancel_mode_trans_bt = ft.ElevatedButton(
 
 
 def validate_changing_mode(current_mode, cancel_transition_mode, desired_mode, rail, status_bar, page, app_ws_content,
-                                status_bar_msg, sio_client, joystick):
+                                status_bar_msg, sio_client, joystick, app_ws):
     """
     Validate and change the robot's mode. Endpoints are consumed to change the mode and wait for confirmation via SocketIO.
     If the mode change is successful, the appropriate view is displayed based on the new mode.
@@ -121,7 +121,10 @@ def validate_changing_mode(current_mode, cancel_transition_mode, desired_mode, r
                 show_teleop_view(app_ws_content)
                 status_bar_msg.value = "You can move the robot around"
                 joystick.visible = True
-
+            elif current_mode == Mode.mapping.name:
+                show_mapping_view(app_ws_content, app_ws)
+                status_bar_msg.value = "Move the robot to generate the map"
+                joystick.visible = True
             else:
                 status_bar_msg.value = f"{str(current_mode)} view NOT implemented yet"
                 app_ws_content.controls.clear() #clear all content in app_ws

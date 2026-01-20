@@ -1,5 +1,6 @@
 
 import flet as ft
+# from first_comps import interactive_viewer
 
 
 def show_waiting_view(app_ws_content):
@@ -26,4 +27,9 @@ def show_teleop_view(app_ws_content):
     app_ws_content.controls.append(
         ft.Text("Teleoperation Mode", size=30, color=ft.Colors.LIGHT_GREEN_ACCENT_700,width=200)
     )
+
+def show_mapping_view(app_ws_content, app_ws):
+    app_ws_content.controls.clear() #clear all content in app_ws
+    app_ws.controls[3].content.visible=True
+
 

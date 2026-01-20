@@ -40,12 +40,26 @@ app_ws_content = ft.Column(
     alignment=ft.MainAxisAlignment.CENTER,
 )
 
+interactive_viewer = ft.InteractiveViewer(
+    min_scale=0.6,
+    max_scale=5,
+    boundary_margin=ft.margin.all(20),
+    # on_interaction_start=lambda e: print(e),
+    # on_interaction_end=lambda e: print(e),
+    # on_interaction_update=lambda e: print(e),
+    content=ft.Image(src="/home/mau/icon.png"),
+    width=1200,
+    height=1200,
+    # visible=True,
+)
+
 # Main application workspace combining the NavigationRail and content area
 app_ws = ft.Row(
     controls=[
         rail,
         ft.Container(expand=True), #To push rail to left
         app_ws_content,
+        interactive_viewer,
     ],
     width=700, height=400,
     alignment=ft.MainAxisAlignment.CENTER,
@@ -68,3 +82,21 @@ status_bar = ft.BottomAppBar(
     ),
     height=70,
 )
+
+# Interactive viewer for maps
+# interactive_viewer = ft.Row(
+#     [
+#         ft.InteractiveViewer(
+#             min_scale=0.4,
+#             max_scale=10,
+#             boundary_margin=ft.margin.all(20),
+#             # on_interaction_start=lambda e: print(e),
+#             # on_interaction_end=lambda e: print(e),
+#             # on_interaction_update=lambda e: print(e),
+#             content=ft.Image(src="assets/joystick.png"),
+#             width=600,
+#             height=600,
+#         )
+#     ]
+# )
+
